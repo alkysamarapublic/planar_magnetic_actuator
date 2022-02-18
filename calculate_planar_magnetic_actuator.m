@@ -1,29 +1,30 @@
 clear;
 %close;
 
-%% Constants
+%% Options
 use_render = true;
+use_calculate_resistance = true;
+use_resistance_visualization = true;
 
+%% Constants
 xsize = 45; %board size x, mm
-ysize = 45; %board size y, mm
+ysize = 100; %board size y, mm
 N = 10; %winding count
-dp = pi/400; %angle step
-%ws = 1; %winding step, mm
-%dr_max = 0.9; %maximum r difference per angle step
+dp = pi/1000; %angle step
 clr = 1; %clearance between lines, mm
-start_angle = 0*pi/4;
+start_angle = 0*pi/4; %angle of starting point
+clearance_angle_for_check = pi/10; %angle in which we check clearance
 
 %% var
-angles = 0:dp:2*pi-dp;
-%angles = 0:dp:pi/4;
-len = length(angles);
-image = zeros(N+1, len);
+angles = 0:dp:2*pi-dp; %angle grid
+len = length(angles); %number of points in grid (single winding_
+image = zeros(N+1, len); %main results are stored in here (radiuses of windings for each angle)
 angle1 = atan(ysize/xsize);
 angle2 = pi-angle1;
 angle3 = pi+angle1;
 angle4 = 2*pi-angle1;
 offset_angle_index = ceil(start_angle/dp)+1;
-clearance_points_for_check = ceil(pi/10 / dp);
+clearance_points_for_check = ceil(clearance_angle_for_check / dp);
 
 sinp = sin(dp);
 cosp = cos(dp);
@@ -32,12 +33,9 @@ sinp2 = sin(dp/2);
 tgp2 = tan(dp/2);
 cosp2 = cos(dp/2);
 
-% test
-m_test=xsize*ysize*1e-6;
-%
-
 %% bounding box
 for i=1:len
+    %uncomment these 2 lines to have round bounding
     %image(1,i) = xsize/2;
     %continue;
     if angles(i) < angle1
@@ -112,8 +110,7 @@ for i=2:N+1
                 end
 			else
 				xs(k) = inf;
-			end
-			
+            end
 		end
 		m = min(xs);
 		if m==inf
@@ -144,7 +141,7 @@ for i=2:N+1
         dr = abs(ri-rim1);
         
         % variant1
-        % {
+        %{
         AC = rim1*sinp;
         AB2 = ri^2+rim1^2-2*ri*rim1*cosp;
         cosg = (dr^2+AB2-AC^2)/(2*dr*sqrt(AB2));
@@ -168,6 +165,11 @@ for i=2:N+1
     end
 end
 
+%% Resistance calculation
+if use_calculate_resistance
+% place code here
+
+end
 
 %% Visualizing
 if use_render
@@ -189,6 +191,11 @@ if use_render
     xlim([-xsize/2*1.1 xsize/2*1.1]);
     ylim([-ysize/2*1.1 ysize/2*1.1]);
     %axis equal
+end
+
+%% Visualize resistance
+if use_resistance_visualization
+    
 end
 
 %% test ideal square
