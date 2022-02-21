@@ -8,12 +8,17 @@ use_resistance_visualization = true;
 
 %% Constants
 xsize = 45; %board size x, mm
-ysize = 100; %board size y, mm
-N = 10; %winding count
-dp = pi/1000; %angle step
-clr = 1; %clearance between lines, mm
+ysize = 45; %board size y, mm
+N = 1; %winding count
+dp = pi/200; %angle step
+width = 1; %width of conductor, mm
+clr = 1+width; %clearance between lines, mm
 start_angle = 0*pi/4; %angle of starting point
 clearance_angle_for_check = pi/10; %angle in which we check clearance
+conductor_resistivity = 1.68e-8; %conductor resistivity of copper
+max_voltage = 5; %maximum voltage of coil, V
+voltage_step = 0.1; %voltage step, V
+track_thickness = 18e-6; %track thickness, m
 
 %% var
 angles = 0:dp:2*pi-dp; %angle grid
@@ -33,6 +38,7 @@ sinp2 = sin(dp/2);
 tgp2 = tan(dp/2);
 cosp2 = cos(dp/2);
 
+conductor_area = width*10^-3*track_thickness; %width*track thickness
 %% bounding box
 for i=1:len
     %uncomment these 2 lines to have round bounding
@@ -167,8 +173,17 @@ end
 
 %% Resistance calculation
 if use_calculate_resistance
-% place code here
-
+    conductor_len = 0;
+    for i=1:N+1
+        for j=2:len
+            dl2 = image(i,j)^2+image(i,(j-1))^2-2*image(i,j)*image(i,(j-1))*cosp;
+            if dl2<0
+                warning('asdf');
+            end
+            conductor_len = conductor_len + sqrt(dl2);
+        end
+    end
+    resistance = conductor_resistivity*conductor_len*10^-3/conductor_area;
 end
 
 %% Visualizing
@@ -190,10 +205,16 @@ if use_render
     plot(xs,ys,'.-b');
     xlim([-xsize/2*1.1 xsize/2*1.1]);
     ylim([-ysize/2*1.1 ysize/2*1.1]);
-    %axis equal
+    axis equal
 end
 
 %% Visualize resistance
 if use_resistance_visualization
-    
+    figure(2);
+    clf;
+    hold on;
+    set(gcf, 'Color', 'w');
+    m_func = m2/resistance*(0:voltage_step:max_voltage);
+    plot(0:voltage_step:max_voltage, m_func);
+    disp(resistance);
 end
