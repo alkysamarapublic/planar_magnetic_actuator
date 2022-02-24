@@ -9,8 +9,8 @@ use_resistance_visualization = true;
 %% Constants
 xsize = 45; %board size x, mm
 ysize = 45; %board size y, mm
-N = 1; %winding count
-dp = pi/200; %angle step
+N = 10; %winding count
+dp = pi/100; %angle step
 width = 1; %width of conductor, mm
 clr = 1+width; %clearance between lines, mm
 start_angle = 0*pi/4; %angle of starting point
@@ -165,10 +165,11 @@ for i=2:N+1
         sina = (AC^2+AB2-(dr/2)^2) / (2*AC*sqrt(AB2));
         dm2 = 0.5e-6*dp*ri^2*sina; %0.5e-6 = 1/2 * 0.001 * 0.001. 
         %1/2 from eqn, 0.001 - because r in mm
-        m2 = m2 +dm2;
+        m2 = m2 + dm2;
         ms2(j) = m2;
         %}
     end
+    m_array(i) = m2;
 end
 
 %% Resistance calculation
@@ -182,8 +183,9 @@ if use_calculate_resistance
             end
             conductor_len = conductor_len + sqrt(dl2);
         end
+        resistance(i) = conductor_resistivity*conductor_len*10^-3/conductor_area;
     end
-    resistance = conductor_resistivity*conductor_len*10^-3/conductor_area;
+    
 end
 
 %% Visualizing
@@ -197,11 +199,23 @@ if use_render
     xs = [];
     ys = [];
     for i=2:N+1
-        [x,y] = pol2cart(angles,image(i,:));
+        [x,y] = pol2cart(angles,image(i,:)+width/2);
         %plot(x,y,'.-b');
         xs = [xs x];
         ys = [ys y];
     end
+    for i=N+1:-1:2
+        for j=len:-1:1
+            [x,y] = pol2cart(angles(j),image(i,j)-width/2);
+            %plot(x,y,'.-b');
+            xs = [xs x];
+            ys = [ys y];
+        end
+    end
+    [x,y] = pol2cart(angles(1),image(1,1)-width*1.5);
+            %plot(x,y,'.-b');
+            xs = [xs x];
+            ys = [ys y];
     plot(xs,ys,'.-b');
     xlim([-xsize/2*1.1 xsize/2*1.1]);
     ylim([-ysize/2*1.1 ysize/2*1.1]);
@@ -214,7 +228,42 @@ if use_resistance_visualization
     clf;
     hold on;
     set(gcf, 'Color', 'w');
-    m_func = m2/resistance*(0:voltage_step:max_voltage);
-    plot(0:voltage_step:max_voltage, m_func);
+    for i=1:N+1
+        m_func(i) = m_array(i)/(resistance(i)*(max_voltage));
+    end
+    plot(1:N+1,m_func(1:N+1));
     disp(resistance);
+    disp(m_func);
+    
+    figure(3);
+    [val, idx] = max(m_func);
+    clf;
+    hold on;
+    set(gcf, 'Color', 'w');
+    [x,y] = pol2cart(angles,image(1,:));
+    plot(x,y,'r');
+    xs = [];
+    ys = [];
+    for i=2:idx
+        [x,y] = pol2cart(angles,image(i,:)+width/2);
+        %plot(x,y,'.-b');
+        xs = [xs x];
+        ys = [ys y];
+    end
+    for i=idx:-1:2
+        for j=len:-1:1
+            [x,y] = pol2cart(angles(j),image(i,j)-width/2);
+            %plot(x,y,'.-b');
+            xs = [xs x];
+            ys = [ys y];
+        end
+    end
+    [x,y] = pol2cart(angles(1),image(1,1)-width*1.5);
+            %plot(x,y,'.-b');
+            xs = [xs x];
+            ys = [ys y];
+    plot(xs,ys,'.-b');
+    xlim([-xsize/2*1.1 xsize/2*1.1]);
+    ylim([-ysize/2*1.1 ysize/2*1.1]);
+    axis equal
 end
