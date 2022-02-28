@@ -10,8 +10,8 @@ use_resistance_visualization = true;
 xsize = 45; %board size x, mm
 ysize = 45; %board size y, mm
 N = 10; %winding count
-dp = pi/100; %angle step
-width = 1; %width of conductor, mm
+dp = pi/1000; %angle step
+width = 0.1; %width of conductor, mm
 clr = 1+width; %clearance between lines, mm
 start_angle = 0*pi/4; %angle of starting point
 clearance_angle_for_check = pi/10; %angle in which we check clearance
@@ -19,7 +19,7 @@ conductor_resistivity = 1.68e-8; %conductor resistivity of copper
 max_voltage = 5; %maximum voltage of coil, V
 voltage_step = 0.1; %voltage step, V
 track_thickness = 18e-6; %track thickness, m
-
+layer_count = 4;
 %% var
 angles = 0:dp:2*pi-dp; %angle grid
 len = length(angles); %number of points in grid (single winding_
@@ -172,6 +172,59 @@ for i=2:N+1
     m_array(i) = m2;
 end
 
+%% Magnetic moment for consistent connection
+mc1 = 0; %without I
+mc2 = 0;
+msc1 = zeros(1,len);
+msc2 = zeros(1,len);
+
+for l=1:layer_count
+    if  rem(l,2) == 1
+        for i=2:N+1
+            for j=1:len
+                if i==2 && j==1
+                    continue;
+                end
+                if j==1
+                    rim1 = image(i-1,end);
+                else
+                    rim1 = image(i,j-1);
+                end
+                ri  = image(i,j);
+                dr = abs(ri-rim1);
+                AO = (ri-dr/2)*cosp2;
+                AC = AO*tgp2;
+                AB2 = ri^2+AO^2-2*ri*AO*cosp2;
+                sina = (AC^2+AB2-(dr/2)^2) / (2*AC*sqrt(AB2));
+                dm2 = 0.5e-6*dp*ri^2*sina;
+                mc2 = mc2 + dm2;
+                msc2(j) = mc2;
+            end
+        end
+    else
+        for i=N+1:-1:2
+            for j=len:-1:1
+                if i==2 && j==1
+                    continue;
+                end
+                if j==1
+                    rim1 = image(i-1,end);
+                else
+                    rim1 = image(i,j-1);
+                end
+                ri  = image(i,j);
+                dr = abs(ri-rim1);
+                AO = (ri-dr/2)*cosp2;
+                AC = AO*tgp2;
+                AB2 = ri^2+AO^2-2*ri*AO*cosp2;
+                sina = (AC^2+AB2-(dr/2)^2) / (2*AC*sqrt(AB2));
+                dm2 = 0.5e-6*dp*ri^2*sina;
+                mc2 = mc2 + dm2;
+                msc2(j) = mc2;
+            end
+        end
+    end
+end
 %% Resistance calculation
 if use_calculate_resistance
     conductor_len = 0;
@@ -212,10 +265,6 @@ if use_render
             ys = [ys y];
         end
     end
-    [x,y] = pol2cart(angles(1),image(1,1)-width*1.5);
-            %plot(x,y,'.-b');
-            xs = [xs x];
-            ys = [ys y];
     plot(xs,ys,'.-b');
     xlim([-xsize/2*1.1 xsize/2*1.1]);
     ylim([-ysize/2*1.1 ysize/2*1.1]);
@@ -224,18 +273,34 @@ end
 
 %% Visualize resistance
 if use_resistance_visualization
+    %magnetic moment in one layer
     figure(2);
     clf;
     hold on;
     set(gcf, 'Color', 'w');
     for i=1:N+1
-        m_func(i) = m_array(i)/(resistance(i)*(max_voltage));
+        m_func(i) = m_array(i)*(max_voltage/(resistance(i)));
     end
     plot(1:N+1,m_func(1:N+1));
-    disp(resistance);
+    %magnetic moment in many layers (consistent connection)
+    m_func_c = mc2*(max_voltage/(layer_count*resistance(N+1)));
     disp(m_func);
+    %magnetic moment in multiple layers (parallel connection)
+    m_func_p = m2*layer_count*(max_voltage/(resistance(N+1)/layer_count));
+    %magnetic moment (without dependances)
+    figure(5);
+    clf;
+    hold on;
+    set(gcf, 'Color', 'w');
+    plot(1:N+1,m_array(1:N+1));
+    %resistance
+    figure(6);
+    clf;
+    hold on;
+    set(gcf, 'Color', 'w');
+    plot(1:N+1,resistance(1:N+1));
     
-    figure(3);
+    figure(7);
     [val, idx] = max(m_func);
     clf;
     hold on;
@@ -258,10 +323,6 @@ if use_resistance_visualization
             ys = [ys y];
         end
     end
-    [x,y] = pol2cart(angles(1),image(1,1)-width*1.5);
-            %plot(x,y,'.-b');
-            xs = [xs x];
-            ys = [ys y];
     plot(xs,ys,'.-b');
     xlim([-xsize/2*1.1 xsize/2*1.1]);
     ylim([-ysize/2*1.1 ysize/2*1.1]);
